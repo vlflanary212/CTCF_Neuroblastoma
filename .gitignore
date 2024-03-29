@@ -16,7 +16,7 @@
 /cache/
 
 # Large Docker and Singularity files/objects
-bin/*
+#bin/*
 !bin/run_rstudio_singularity.sh
 
 # Large data files
