@@ -1,0 +1,162 @@
+---
+title: "Annotate Peaks"
+author: "Victoria L. Flanary and Brianna A. Jones"
+date: "2024-03-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Set up workspace
+```{r set working directory}
+library(here)
+# here() starts at /data/project/sen-lab/CTCF_Neuroblastoma
+```
+
+```{r load packages}
+library(readr)
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(biovizBase))
+suppressPackageStartupMessages(library(GenomicFeatures))
+suppressWarnings(library(genomation))
+suppressPackageStartupMessages(library(ChIPseeker))
+library(rtracklayer)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(ChrAccR)
+```
+
+```{r load custom functions}
+source(here("src", "pre-processing", "functions.R"))
+```
+
+```{r load sample lists}
+# hncc atac metadata
+metadata1 <- read_csv(here("doc", "atac-seq", "GSE108517", "SraRunTable.txt"))
+sample_list1 <- metadata1$Run
+
+# neuroblastoma atac metadata
+metadata2 <- read_csv(here("doc", "atac-seq", "GSE138293", "SraRunTable.txt"))
+sample_list2 <- metadata2$Run
+```
+
+# Create GRanges object with all ATAC-seq peaks
+```{r read hncc data into granges}
+# define peak directory
+peak_dir1 <- paste0(here("dat", "atac-seq", "GSE108517", "peaks"), "/")
+
+# generate list of granges objects
+peak_list1 <- lapply(sample_list1, narrow_peaks_to_granges, 
+                    peak_dir=peak_dir1)
+names(peak_list1) <- sample_list1
+```
+
+```{r read neuroblastoma data into granges}
+# define peak directory
+peak_dir2 <- paste0(here("dat", "atac-seq","GSE138293", "peaks"), "/")
+
+# generate list of granges objects
+peak_list2 <- lapply(sample_list2, narrow_peaks_to_granges, 
+                    peak_dir=peak_dir2)
+names(peak_list2) <- sample_list2
+```
+
+```{r merge lists and combine into a single granges object}
+# append lists
+peak_list <- c(peak_list1, peak_list2)
+
+# collapse into single granges object
+peaks <- peak_list %>% GRangesList %>% flatGrl() 
+```
+
+```{r format peak names to chr_start_end}
+peaks$name <- paste0(seqnames(peaks), "_", start(peaks), "_", end(peaks))
+```
+
+```{r save peaks}
+saveRDS(peak_list, here("dat", "atac-seq", "GRanges", "atac-seq_peak_list.RDS"))
+saveRDS(peaks, here("dat", "atac-seq", "GRanges", "atac-seq_peaks_granges.RDS"))
+```
+
+# Annotate Peaks
+```{r load annotations}
+txdb <- loadDb("/data/project/sen-lab/genome/hg38/gencode.v22.annotation.txdb")
+```
+
+```{r get genomic tiling}
+# sort peaks
+sorted_peaks <- sort(peaks)
+
+# get list of 1kb non-overlapping genomic tiles
+tiling <- muRtools::getTilingRegions("hg38", width=1000L, onlyMainChrs=TRUE)
+
+# filter tiles for those that overlap the atac-seq peaks
+tiling <- subsetByOverlaps(tiling, peaks)
+
+# add fragment names to tiling
+tiling$name <- paste0(seqnames(tiling), "_", start(tiling), "_", end(tiling))
+```
+
+```{r annotate peaks}
+peak_anno <- annotatePeak(tiling, tssRegion=c(-1000, 500),
+                          TxDb=txdb, annoDb="org.Hs.eg.db") %>% as.data.frame()
+```
+
+```{r subset promoters}
+promoters <- peak_anno[grep("Promoter", peak_anno$annotation),] %>% 
+  makeGRangesFromDataFrame(keep.extra.columns = TRUE)
+```
+
+```{r subset non-coding regions}
+distal <- peak_anno[grep("Distal Intergenic", peak_anno$annotation),]
+introns <- peak_anno[grep("Intron", peak_anno$annotation),] 
+
+noncoding <- rbind(distal, introns) %>% 
+  makeGRangesFromDataFrame(keep.extra.columns = TRUE)
+```
+
+```{r save peak anotations}
+saveRDS(peak_anno, 
+        here("dat", "atac-seq", "GRanges", "atac-seq_peak_annotation.RDS"))
+saveRDS(promoters, 
+        here("dat", "atac-seq", "GRanges", "promoter_atac-seq_peak_annotation.RDS"))
+saveRDS(noncoding, 
+        here("dat", "atac-seq", "GRanges", "noncoding_atac-seq_peak_annotation.RDS"))
+```
+
+# Create the DsATAC object
+```{r merge metadata into a single sample annotation table}
+shared_cols <- intersect(names(metadata1), names(metadata2))
+metadata <- rbind(metadata1[, shared_cols], metadata2[, shared_cols])
+```
+
+```{r get bam file paths into a single vector}
+bam_file1 <- paste0(here("dat", "atac-seq", "GSE108517", "bam"), 
+                   "/", sample_list1, "_final.bam")
+bam_file2 <- paste0(here("dat", "atac-seq", "GSE138293", "bam"), 
+                   "/", sample_list2, "_final.bam")
+bam_files <- c(bam_file1, bam_file2)
+```
+
+```{r add bam files to metadata}
+sample_anno <- cbind(metadata, bam_files)
+```
+
+```{r flag to remove sex chromosomes}
+setConfigElement("filteringSexChroms", TRUE)
+```
+
+```{r create dsatac object}
+dsa <- DsATAC.bam(sample_anno, "bam_files", "hg38",
+                  regionSets=list(promoters=promoters,
+                                  distal_regions=noncoding), 
+                  sampleIdCol = "Run",
+                  diskDump = FALSE)
+```
+
+```{r save the dsatac object}
+dest <- file.path(here("dat", "atac-seq"), "DsAtacDataset")
+saveDsAcc(dsa, dest)
+```

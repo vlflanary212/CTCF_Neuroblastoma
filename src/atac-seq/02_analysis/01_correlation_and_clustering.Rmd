@@ -1,0 +1,103 @@
+---
+title: "Correlation Matrices by Region"
+author: "Victoria L. Flanary and Brianna A. Jones"
+date: "2024-03-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Set up the workspace
+```{r path to working directory}
+library(here)
+```
+
+```{r load packages}
+library(readr)
+library(dplyr)
+library(matrixStats)
+library(ComplexHeatmap)
+library(circlize)
+```
+
+```{r load data}
+distal_fpkm <- read_csv(here("dat", "atac-seq", "counts",
+                             "distal_regions_fpkm_counts.csv"))
+promoter_fpkm <- read_csv(here("dat", "atac-seq", "counts",
+                             "promoters_fpkm_counts.csv"))
+```
+
+```{r load metadata}
+hncc <- read_csv(here("doc", "atac-seq", "GSE108517", "SraRunTable.txt"))
+nb <- read_csv(here("doc", "atac-seq", "GSE138293", "SraRunTable.txt"))
+```
+
+# Wrangle the data
+```{r combine metadata into a single table}
+metadata <- bind_rows(hncc, nb)
+```
+
+```{r format data}
+# replace srr_ids with cell_line names
+colnames(distal_fpkm) <- metadata$cell_line[match(
+  colnames(distal_fpkm), metadata$Run)]
+colnames(promoter_fpkm) <- metadata$cell_line[match(
+  colnames(promoter_fpkm), metadata$Run)]
+
+# remove fragment name column and convert to matrix
+distal_fpkm <- distal_fpkm[, -1] %>% data.matrix()
+promoter_fpkm <- promoter_fpkm[, -1] %>% data.matrix()
+```
+
+# Correlation Matrices
+```{r make a function to generate correlation matrices}
+corr_matrix <- function(counts_matrix) {
+  # filter by row means and variance
+  vars <- rowVars(counts_matrix)
+  means <- rowMeans(counts_matrix)
+  filt <- subset(counts_matrix, vars > 0 & means >= 1)
+  
+  # calculate correlation matrix
+  cor(filt)
+}
+```
+
+```{r get correlation matrices}
+distal_corr <- corr_matrix(distal_fpkm)
+promoter_corr <- corr_matrix(promoter_fpkm)
+```
+
+```{r visualize correlation matrices}
+colors <- colorRamp2(c(-1, 0, 1), c( "blue","white","red"))
+
+pdf(here("res", "atac-seq", "02_eda", "atac_peak_correlation_by_region.pdf"))
+
+Heatmap(promoter_corr, 
+        column_title = "Pearson Correlation of Promoter Chromatin Accessibility",
+        name = "correlation", col = colors,
+        clustering_method_rows = "ward.D2", 
+        clustering_method_columns = "ward.D2")
+
+Heatmap(distal_corr, column_title = "Pearson Correlation of Distal and 
+        Intergenic Region Chromatin Accessibility",
+        name = "correlation", col = colors,
+        clustering_method_rows = "ward.D2", 
+        clustering_method_columns = "ward.D2")
+
+dev.off()
+```
+
+# Hierarchical Clustering of Distal Regions
+```{r calculate euclidean distance}
+euclidean <- dist(distal_corr, method = "euclidean")
+```
+
+```{r plot clusters}
+pdf(here("res", "atac-seq", "02_eda", "hierarchical_clustering_of_distal_peaks.pdf"))
+hc <- hclust(euclidean, method = "ward.D2")
+plot(hc, main = "Hierarchichal Clustering of Distal Peaks")
+rect.hclust(hc, h = 1.6, border = "red")
+dev.off()
+```
