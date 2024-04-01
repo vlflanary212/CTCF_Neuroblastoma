@@ -16,11 +16,14 @@
 /cache/
 
 # Large Docker and Singularity files/objects
-
+bin/*
+!bin/Dockerfile
+!rstudio-prefs.json
+!run_rstudio_singularity.sh
 
 # Large data files
 dat/*-seq/*
-res/large_files/*
+res/*/large-files/*
 
 # Job output and error files
 src/*/*/*.err
