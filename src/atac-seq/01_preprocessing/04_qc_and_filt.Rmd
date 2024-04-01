@@ -24,7 +24,7 @@ theme_set(muRtools::theme_nogrid())
 ```
 
 ```{r load the dsatac object}
-dsa <- loadDsAcc(here("dat", "atac-seq", "DsAtacDataset"))
+dsa <- loadDsAcc(here("dat", "atac-seq", "combined", "DsAtacDataset"))
 ```
 
 # Explore the data
@@ -70,7 +70,7 @@ write.table(num_fragments, row.names = TRUE, col.names = FALSE,
 ```{r all Tn5 insertion sites}
 all_tn5_sites <- getInsertionSites(dsa, getSamples(dsa))
 
-saveRDS(all_tn5_sites, here("res", "large_files", 
+saveRDS(all_tn5_sites, here("res", "atac-seq", "00_large_files", 
                             "all_tn5_insertion_sites.RDS"))
 ```
 

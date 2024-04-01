@@ -26,10 +26,12 @@ library(rtracklayer)
 library(AnnotationDbi)
 library(org.Hs.eg.db)
 library(ChrAccR)
+library(styler)
+library(lintr)
 ```
 
 ```{r load custom functions}
-source(here("src", "pre-processing", "functions.R"))
+source(here("src", "atac-seq", "functions.R"))
 ```
 
 ```{r load sample lists}
@@ -76,8 +78,8 @@ peaks$name <- paste0(seqnames(peaks), "_", start(peaks), "_", end(peaks))
 ```
 
 ```{r save peaks}
-saveRDS(peak_list, here("dat", "atac-seq", "GRanges", "atac-seq_peak_list.RDS"))
-saveRDS(peaks, here("dat", "atac-seq", "GRanges", "atac-seq_peaks_granges.RDS"))
+saveRDS(peak_list, here("dat", "atac-seq", "combined", "GRanges", "atac-seq_peak_list.RDS"))
+saveRDS(peaks, here("dat", "atac-seq", "combined", "GRanges", "atac-seq_peaks_granges.RDS"))
 ```
 
 # Annotate Peaks
@@ -119,11 +121,11 @@ noncoding <- rbind(distal, introns) %>%
 
 ```{r save peak anotations}
 saveRDS(peak_anno, 
-        here("dat", "atac-seq", "GRanges", "atac-seq_peak_annotation.RDS"))
+        here("dat", "atac-seq", "combined", "GRanges", "atac-seq_peak_annotation.RDS"))
 saveRDS(promoters, 
-        here("dat", "atac-seq", "GRanges", "promoter_atac-seq_peak_annotation.RDS"))
+        here("dat", "atac-seq", "combined", "GRanges", "promoter_atac-seq_peak_annotation.RDS"))
 saveRDS(noncoding, 
-        here("dat", "atac-seq", "GRanges", "noncoding_atac-seq_peak_annotation.RDS"))
+        here("dat", "atac-seq", "combined", "GRanges", "noncoding_atac-seq_peak_annotation.RDS"))
 ```
 
 # Create the DsATAC object
@@ -157,6 +159,6 @@ dsa <- DsATAC.bam(sample_anno, "bam_files", "hg38",
 ```
 
 ```{r save the dsatac object}
-dest <- file.path(here("dat", "atac-seq"), "DsAtacDataset")
+dest <- file.path(here("dat", "atac-seq", "combined"), "DsAtacDataset")
 saveDsAcc(dsa, dest)
 ```

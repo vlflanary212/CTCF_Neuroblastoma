@@ -23,9 +23,9 @@ library(circlize)
 ```
 
 ```{r load data}
-distal_fpkm <- read_csv(here("dat", "atac-seq", "counts",
+distal_fpkm <- read_csv(here("dat", "atac-seq", "combined", "counts",
                              "distal_regions_fpkm_counts.csv"))
-promoter_fpkm <- read_csv(here("dat", "atac-seq", "counts",
+promoter_fpkm <- read_csv(here("dat", "atac-seq", "combined", "counts",
                              "promoters_fpkm_counts.csv"))
 ```
 
@@ -96,8 +96,10 @@ euclidean <- dist(distal_corr, method = "euclidean")
 
 ```{r plot clusters}
 pdf(here("res", "atac-seq", "02_eda", "hierarchical_clustering_of_distal_peaks.pdf"))
+
 hc <- hclust(euclidean, method = "ward.D2")
 plot(hc, main = "Hierarchichal Clustering of Distal Peaks")
 rect.hclust(hc, h = 1.6, border = "red")
+
 dev.off()
 ```
