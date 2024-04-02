@@ -1,0 +1,187 @@
+---
+title: "SK-N-AS CTCF ChIP-seq vs ATAC-seq Overlap"
+author: "Victoria Flanary"
+date: "2024-03-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Goal: Determine the likelihood that the SK-N-AS CTCF ChIP-seq peaks overlap 
+with differential peaks identified for SK-N-AS vs hNCCs from ATAC-seq data.
+
+```{r load packages}
+suppressPackageStartupMessages(library(dplyr))
+suppressWarnings(library(genomation))
+suppressPackageStartupMessages(library(GenomicFeatures))
+library(here)
+library(styler)
+library(lintr)
+```
+
+# Define genomic intervals in GRanges objects
+## Load current data
+```{r load sk-n-as ctcf chip-seq peaks}
+ctcf_chip_gr <- readNarrowPeak(here(
+  "dat", "GSE101295",
+  "peaks", "SRR6334832_peaks.narrowPeak"
+))
+
+mcols(ctcf_chip_gr) <- cbind(
+  mcols(ctcf_chip_gr),
+  DataFrame(sample = "SRR6334832")
+)
+```
+
+```{r load differential atac-seq results}
+diff_atac <- read.table(here(
+  "res", "large_files",
+  "SK_N_AS_vs_hNCC_differential_res.tsv"
+))
+```
+
+## Format CTCF ChIP-seq data
+```{r subset ctcf chip-seq data to only include significant peaks}
+ctcf_chip_gr <- subset(
+  ctcf_chip_gr,
+  ctcf_chip_gr@elementMetadata@listData[["qvalue"]] >= 1.30103
+) # p-value < -log10(0.05)
+```
+
+## Convert differential ATAC-seq results to GRanges object
+### GRanges of all ATAC-seq peaks
+```{r define vectors to build granges}
+seqname <- sapply(strsplit(diff_atac$peakID, "_"), "[", 1)
+start <- sapply(strsplit(diff_atac$peakID, "_"), "[", 2) %>% as.numeric()
+end <- sapply(strsplit(diff_atac$peakID, "_"), "[", 3) %>% as.numeric()
+```
+
+```{r generate granges object from atac-seq results}
+diff_atac_gr_all <- GRanges(
+  seqnames = seqname,
+  ranges = IRanges(start = start, end = end),
+  log2fc = diff_atac$log2FoldChange,
+  padj = diff_atac$padj
+)
+```
+
+```{r subset to only include upregulated peaks}
+diff_atac_gr_up <- subset(diff_atac_gr_all, log2fc > 0)
+```
+
+```{r split granges by significance}
+# significant peaks
+diff_atac_gr_sig <- subset(diff_atac_gr_up, padj < 0.05)
+
+# non significant peaks
+diff_atac_gr_nonsig <- subset(diff_atac_gr_up, padj > 0.05 |
+  is.na(diff_atac_gr_up@elementMetadata@listData[["padj"]]))
+```
+
+## Randomization-based hypothesis testing
+### Bootstrapping
+```{r create a function to replicate over}
+ctcf_overlap <- function(granges) {
+  # generate 1000 random samples from the background population
+  x <- sample(seq_along(granges), 1000, replace = FALSE)
+
+  # extract a single random sample
+  sample_pop <- granges[x]
+
+  # find overlaps between the ctcf chip-seq peaks and peaks from random sample
+  length(subsetByOverlaps(ctcf_chip_gr, sample_pop))
+}
+```
+
+```{r generate points for each distribution}
+# points for the null distribution (all peaks to represent random chance)
+random <- replicate(1000, ctcf_overlap(diff_atac_gr_up))
+
+# use non-significant peaks as an additional negative control
+non_significant <- replicate(1000, ctcf_overlap(diff_atac_gr_nonsig))
+
+# points for the case distribution (significant peaks)
+significant <- replicate(1000, ctcf_overlap(diff_atac_gr_sig))
+```
+
+### Plotting
+##### Box Plot
+```{r collapse distribution vectors into a list}
+enrichment <- list(significant, non_significant, random)
+names(enrichment) <- c("significant", "non-significant", "random")
+```
+
+```{r plot distributions on a box plot}
+pdf(here(
+  "res", "ctcf_enrichment",
+  "sk-n-as_ctcf_chip-seq_enrichment_with_differential_atac-seq.pdf"
+))
+boxplot(enrichment,
+  main = "ChIP-seq peak enrichment with differential ATAC-seq results",
+  xlab = "Differential ATAC-seq peak distributions",
+  ylab = "Number of overlaps with CTCF ChIP-seq peaks",
+  col = c("seagreen", "steelblue", "purple")
+)
+dev.off()
+```
+
+#### Histogram
+```{r confidence intervals for the distribution of overlap lengths}
+# save results in a single pdf
+pdf(here(
+  "res", "ctcf_enrichment",
+  "confidence_intervals_for_overlap_frequency_distributions.pdf"
+))
+
+# random chance distribution confidence interval
+## get percentiles for bootstrapped overlap lengths
+q <- quantile(random, p = c(0.025, 0.975)) # 95% confidence interval
+
+## plot the histogram
+hist(random,
+  main = "CTCF ChIP-seq peak overlaps with random samples
+     of differential ATAC-seq peaks",
+  xlab = "Lengths of Overlaps", col = "purple", border = "cornsilk"
+)
+abline(v = c(q[1], q[2]), col = "black")
+text(paste0("2.5% = ", q[1]), x = q[1], y = 225, adj = c(1, 0))
+text(paste0("97.5% = ", q[2]), x = q[2], y = 225, adj = c(0, 0))
+
+# significant distribution confidence interval
+## get percentiles for bootstrapped overlap lengths
+q <- quantile(significant, p = c(0.025, 0.975)) # 95% confidence interval
+
+## plot the histogram
+hist(significant,
+  main = "CTCF ChIP-seq peak overlaps with samples of
+     significant differential ATAC-seq peaks",
+  xlab = "Lengths of Overlaps", col = "seagreen", border = "cornsilk"
+)
+abline(v = c(q[1], q[2]), col = "black")
+text(paste0("2.5% = ", q[1]), x = q[1], y = 125, adj = c(1, 0))
+text(paste0("97.5% = ", q[2]), x = q[2], y = 125, adj = c(0, 0))
+
+# nonsignificant distribution confidence interval
+## get percentiles for bootstrapped overlap lengths
+q <- quantile(non_significant, p = c(0.025, 0.975)) # 95% confidence interval
+
+## plot the histogram
+hist(non_significant,
+  main = "CTCF ChIP-seq peak overlaps with samples of
+     significant differential ATAC-seq peaks",
+  xlab = "Lengths of Overlaps", col = "steelblue", border = "cornsilk"
+)
+abline(v = c(q[1], q[2]), col = "black")
+text(paste0("2.5% = ", q[1]), x = q[1], y = 125, adj = c(1, 0))
+text(paste0("97.5% = ", q[2]), x = q[2], y = 125, adj = c(0, 0))
+dev.off()
+```
+
+# End of script
+```{r format script by tidyverse style guide}
+style_file(here("src", "test", "sk-n-as_ctcf_chip_vs_atac_overlap.Rmd"))
+lint(here("src", "test", "sk-n-as_ctcf_chip_vs_atac_overlap.Rmd"))
+```
+
