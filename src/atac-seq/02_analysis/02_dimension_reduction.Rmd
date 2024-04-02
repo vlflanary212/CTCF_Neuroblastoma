@@ -1,0 +1,94 @@
+---
+title: "Dimension Reduction"
+author: "Victoria Flanary"
+date: "2024-03-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Set up the workspace
+```{r set working directory and here path}
+library(here())
+```
+
+```{r load packages}
+library(readr)
+library(dplyr)
+library(ggplot2)
+#library(ggthemes)
+```
+
+```{r load data}
+distal_fpkm <- read_csv(here("dat", "atac-seq", "combined", "counts",
+                             "distal_regions_fpkm_counts.csv")) %>% as.data.frame()
+```
+
+```{r load metadata}
+metadata <- read_csv(here("doc", "atac-seq", "combined", "metadata_with_clusters.csv"))
+```
+
+# Format data
+```{r move fragment names}
+rownames(distal_fpkm) <- distal_fpkm$fragments
+distal_fpkm <- distal_fpkm[, -1]
+```
+
+# PCA
+```{r calculate pca}
+distal_pca <- prcomp(t(distal_fpkm), scale = TRUE)
+```
+
+```{r which pcs accounts for what amount of variation in the data}
+pdf(here("res", "atac-seq", "02_eda", "distal_peaks_pca_scree_plot.pdf"))
+
+pca_var <- distal_pca$sdev^2
+pca_var_per <- round(pca_var/sum(pca_var)*100, 1)
+barplot(pca_var_per, main = "Scree plot", 
+        xlab = "Principal Components", ylab = "Percent Variation")
+
+dev.off()
+```
+
+```{r format for ggplot2}
+pca_data <- data.frame(cell_line = metadata$cell_line,
+                       cluster = as.factor(metadata$cluster),
+                       PC1 = distal_pca$x[,1],
+                       PC2 = distal_pca$x[,2]) 
+```
+
+```{r plot pca with ggplot2}
+pdf(here("res", "atac-seq", "02_eda", "distal_peaks_pca_plots.pdf"),
+    width = 11, height = 6)
+
+x <- ggplot(pca_data, aes(x = PC1, y = PC2, color = cluster)) +
+  geom_point() +
+  xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
+  ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
+  ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
+  scale_color_brewer(palette = "Dark2")
+
+y <- ggplot(pca_data, aes(x = PC1, y = PC2, label = cell_line, color = cluster)) +
+  geom_text(show.legend = FALSE) +
+  xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
+  ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
+  ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
+  scale_color_brewer(palette = "Dark2")
+
+ggarrange(x,y, ncol = 2, nrow = 1)
+dev.off()
+```
+
+```{r use loading scores to identify fragments driving variance on pca}
+loading_scores <- distal_pca$rotation[, 1]
+fragment_scores <- abs(loading_scores)
+fragment_scores_ranked <- sort(fragment_scores, decreasing = TRUE)
+top_10_fragments <- names(fragment_scores_ranked[1:10])
+
+x <- distal_pca$rotation[top_10_fragments, 1]
+write.table(x, paste0(
+  here("res", "atac-seq", "02_eda"), "/", "top_10_fragments.table"),
+  row.names = TRUE)
+```

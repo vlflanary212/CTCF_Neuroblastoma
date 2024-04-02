@@ -1,0 +1,72 @@
+---
+title: "Top 5000 Most Variable Peaks in Distal and Intergenic Regions"
+author: "Victoria Flanary"
+date: "2024-03-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Set up the workspace
+```{r set working directory and here path}
+library(here)
+```
+
+```{r load packages}
+library(readr
+library(dplyr)
+library(data.table)
+library(matrixStats)
+library(circlize)
+library(ComplexHeatmap)
+```
+
+```{r load data}
+distal_fpkm <- read_csv(here("dat", "atac-seq", "counts",
+                             "distal_regions_fpkm_counts.csv")) %>% as.data.frame()
+```
+
+```{r load metadata}
+metadata <- read_csv(here("doc", "atac-seq", "complete_metadata.csv"))
+```
+
+# Format data
+```{r move fragment names to rownames and rename columns}
+rownames(distal_fpkm) <- distal_fpkm$fragments
+distal_fpkm <- distal_fpkm[, -1]
+colnames(distal_fpkm) <- metadata$cell_line
+```
+
+```{r save as table}
+write.table(distal_fpkm, here("dat", "atac-seq", "counts", 
+                              "distal_regions_fpkm_counts.table"))
+```
+
+```{r filter counts by row mean and variance}
+matrix <- distal_fpkm %>% as.matrix()
+row_var <- rowVars(matrix)
+row_mean <- rowMeans(matrix)
+filt_matrix <- subset(matrix, row_var >=1 & row_mean >= 1)
+```
+
+```{r filter again by row variance}
+filt_row_var <- rowVars(filt_matrix)
+```
+
+```{r select top 5000 most variable peaks}
+df <- as.data.frame(filt_matrix)
+colnames(df) <- metadata$Run  # slice cannot handle duplicate colnames
+top_5000 <- slice_max(df, n = 5000, order_by = filt_row_var)
+```
+
+```{r scale data}
+top_5000_scaled <- t(scale(t(top_5000)))
+```
+
+```{r format data by cell line and cluster}
+colnames(top_5000_scaled) <- metadata$cell_line
+
+```
+

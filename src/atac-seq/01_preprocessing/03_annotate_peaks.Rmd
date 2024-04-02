@@ -44,6 +44,12 @@ metadata2 <- read_csv(here("doc", "atac-seq", "GSE138293", "SraRunTable.txt"))
 sample_list2 <- metadata2$Run
 ```
 
+```{r combined metadata for future reference}
+metadata <- bind_rows(metadata1, metadata2)
+
+write_csv(metadata, here("doc", "atac-seq", "combined", "merged_sra_run_tables.csv"))
+```
+
 # Create GRanges object with all ATAC-seq peaks
 ```{r read hncc data into granges}
 # define peak directory

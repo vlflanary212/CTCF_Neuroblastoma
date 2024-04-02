@@ -30,15 +30,10 @@ promoter_fpkm <- read_csv(here("dat", "atac-seq", "combined", "counts",
 ```
 
 ```{r load metadata}
-hncc <- read_csv(here("doc", "atac-seq", "GSE108517", "SraRunTable.txt"))
-nb <- read_csv(here("doc", "atac-seq", "GSE138293", "SraRunTable.txt"))
+metadata <- read_csv(here("doc", "atac-seq", "combined", "merged_sra_run_tables.csv"))
 ```
 
 # Wrangle the data
-```{r combine metadata into a single table}
-metadata <- bind_rows(hncc, nb)
-```
-
 ```{r format data}
 # replace srr_ids with cell_line names
 colnames(distal_fpkm) <- metadata$cell_line[match(
@@ -103,3 +98,12 @@ rect.hclust(hc, h = 1.6, border = "red")
 
 dev.off()
 ```
+
+```{r add and save clusters to metadata}
+cluster <- cutree(hc, h=1.6)
+metadata <- cbind(metadata, cluster)
+
+metadata <- write_csv(metadata, here("doc", "atac-seq", "combined", "metadata_with_clusters.csv"))
+```
+
+# End of Analysis
