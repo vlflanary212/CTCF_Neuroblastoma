@@ -23,7 +23,7 @@ bin/*
 
 # Large data files
 dat/*-seq/*
-res/*/large-files/*
+res/*-seq/00_large_files/*
 
 # Job output and error files
 src/*/*/*.err
