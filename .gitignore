@@ -28,6 +28,3 @@ res/*/large-files/*
 # Job output and error files
 src/*/*/*.err
 src/*/*/*.out
-
-# Vignettes
-src/vignettes/*
