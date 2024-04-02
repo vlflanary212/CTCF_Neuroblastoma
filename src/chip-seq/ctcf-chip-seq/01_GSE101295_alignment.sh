@@ -12,8 +12,11 @@
 #SBATCH --output=%x_%A_%a.out
 #SBATCH --error=%x_%A_%a.err
 
+########### AUTHORS #########
+# Victoria L. Flanary
+
 ##### WORKING DIRECTORY #####
-wd="/data/project/sen-lab/Victoria/Neuroblastoma_EDA" 
+wd="/data/project/sen-lab/CTCF_Neuroblastoma" 
 
 ##### ARRAY #####
 sample_list=$wd"/doc/chip-seq/GSE101295/SRR_Acc_List.txt"

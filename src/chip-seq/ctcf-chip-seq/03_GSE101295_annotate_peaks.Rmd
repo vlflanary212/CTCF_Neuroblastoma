@@ -24,7 +24,7 @@ library(org.Hs.eg.db)
 ```
 
 ```{r load custom functions}
-source(here("src", "pre-processing", "functions.R"))
+source(here("src", "atac-seq", "functions.R"))
 ```
 
 ```{r load sample list}

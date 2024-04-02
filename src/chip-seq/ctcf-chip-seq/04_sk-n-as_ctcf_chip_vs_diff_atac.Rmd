@@ -181,7 +181,7 @@ dev.off()
 
 # End of script
 ```{r format script by tidyverse style guide}
-style_file(here("src", "test", "sk-n-as_ctcf_chip_vs_atac_overlap.Rmd"))
-lint(here("src", "test", "sk-n-as_ctcf_chip_vs_atac_overlap.Rmd"))
+style_file(here("src", "chip-seq", "ctcf-chip-seq", "sk-n-as_ctcf_chip_vs_atac_overlap.Rmd"))
+lint(here("src", "chip-seq", "ctcf-chip-seq", "sk-n-as_ctcf_chip_vs_atac_overlap.Rmd"))
 ```
 
