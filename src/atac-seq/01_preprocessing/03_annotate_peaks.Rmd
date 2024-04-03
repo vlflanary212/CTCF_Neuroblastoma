@@ -10,12 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Set up workspace
-```{r set working directory}
-library(here)
-# here() starts at /data/project/sen-lab/CTCF_Neuroblastoma
-```
-
 ```{r load packages}
+library(here)
 library(readr)
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(biovizBase))
@@ -44,24 +40,37 @@ metadata2 <- read_csv(here("doc", "atac-seq", "GSE138293", "SraRunTable.txt"))
 sample_list2 <- metadata2$Run
 ```
 
+```{r combined metadata for future reference}
+metadata <- bind_rows(metadata1, metadata2)
+
+write_csv(metadata, here(
+  "doc", "atac-seq", "combined",
+  "merged_sra_run_tables.csv"
+))
+```
+
 # Create GRanges object with all ATAC-seq peaks
 ```{r read hncc data into granges}
 # define peak directory
 peak_dir1 <- paste0(here("dat", "atac-seq", "GSE108517", "peaks"), "/")
 
 # generate list of granges objects
-peak_list1 <- lapply(sample_list1, narrow_peaks_to_granges, 
-                    peak_dir=peak_dir1)
+peak_list1 <- lapply(
+  sample_list1, narrow_peaks_to_granges,
+  peak_dir = peak_dir1
+)
 names(peak_list1) <- sample_list1
 ```
 
 ```{r read neuroblastoma data into granges}
 # define peak directory
-peak_dir2 <- paste0(here("dat", "atac-seq","GSE138293", "peaks"), "/")
+peak_dir2 <- paste0(here("dat", "atac-seq", "GSE138293", "peaks"), "/")
 
 # generate list of granges objects
-peak_list2 <- lapply(sample_list2, narrow_peaks_to_granges, 
-                    peak_dir=peak_dir2)
+peak_list2 <- lapply(
+  sample_list2, narrow_peaks_to_granges,
+  peak_dir = peak_dir2
+)
 names(peak_list2) <- sample_list2
 ```
 
@@ -70,7 +79,9 @@ names(peak_list2) <- sample_list2
 peak_list <- c(peak_list1, peak_list2)
 
 # collapse into single granges object
-peaks <- peak_list %>% GRangesList %>% flatGrl() 
+peaks <- peak_list %>%
+  GRangesList() %>%
+  flatGrl()
 ```
 
 ```{r format peak names to chr_start_end}
@@ -78,8 +89,12 @@ peaks$name <- paste0(seqnames(peaks), "_", start(peaks), "_", end(peaks))
 ```
 
 ```{r save peaks}
-saveRDS(peak_list, here("dat", "atac-seq", "combined", "GRanges", "atac-seq_peak_list.RDS"))
-saveRDS(peaks, here("dat", "atac-seq", "combined", "GRanges", "atac-seq_peaks_granges.RDS"))
+saveRDS(peak_list, here(
+  "dat", "atac-seq", "combined", "GRanges", "atac-seq_peak_list.RDS"
+))
+saveRDS(peaks, here(
+  "dat", "atac-seq", "combined", "GRanges", "atac-seq_peaks_granges.RDS"
+))
 ```
 
 # Annotate Peaks
@@ -92,7 +107,7 @@ txdb <- loadDb("/data/project/sen-lab/genome/hg38/gencode.v22.annotation.txdb")
 sorted_peaks <- sort(peaks)
 
 # get list of 1kb non-overlapping genomic tiles
-tiling <- muRtools::getTilingRegions("hg38", width=1000L, onlyMainChrs=TRUE)
+tiling <- muRtools::getTilingRegions("hg38", width = 1000L, onlyMainChrs = TRUE)
 
 # filter tiles for those that overlap the atac-seq peaks
 tiling <- subsetByOverlaps(tiling, peaks)
@@ -102,30 +117,44 @@ tiling$name <- paste0(seqnames(tiling), "_", start(tiling), "_", end(tiling))
 ```
 
 ```{r annotate peaks}
-peak_anno <- annotatePeak(tiling, tssRegion=c(-1000, 500),
-                          TxDb=txdb, annoDb="org.Hs.eg.db") %>% as.data.frame()
+peak_anno <- annotatePeak(tiling,
+  tssRegion = c(-1000, 500),
+  TxDb = txdb, annoDb = "org.Hs.eg.db"
+) %>% as.data.frame()
 ```
 
 ```{r subset promoters}
-promoters <- peak_anno[grep("Promoter", peak_anno$annotation),] %>% 
+promoters <- peak_anno[grep("Promoter", peak_anno$annotation), ] %>%
   makeGRangesFromDataFrame(keep.extra.columns = TRUE)
 ```
 
 ```{r subset non-coding regions}
-distal <- peak_anno[grep("Distal Intergenic", peak_anno$annotation),]
-introns <- peak_anno[grep("Intron", peak_anno$annotation),] 
+distal <- peak_anno[grep("Distal Intergenic", peak_anno$annotation), ]
+introns <- peak_anno[grep("Intron", peak_anno$annotation), ]
 
-noncoding <- rbind(distal, introns) %>% 
+noncoding <- rbind(distal, introns) %>%
   makeGRangesFromDataFrame(keep.extra.columns = TRUE)
 ```
 
 ```{r save peak anotations}
-saveRDS(peak_anno, 
-        here("dat", "atac-seq", "combined", "GRanges", "atac-seq_peak_annotation.RDS"))
-saveRDS(promoters, 
-        here("dat", "atac-seq", "combined", "GRanges", "promoter_atac-seq_peak_annotation.RDS"))
-saveRDS(noncoding, 
-        here("dat", "atac-seq", "combined", "GRanges", "noncoding_atac-seq_peak_annotation.RDS"))
+saveRDS(peak_anno, here(
+  "dat", "atac-seq", "combined", "GRanges",
+  "atac-seq_peak_annotation.RDS"
+))
+saveRDS(
+  promoters,
+  here(
+    "dat", "atac-seq", "combined", "GRanges",
+    "promoter_atac-seq_peak_annotation.RDS"
+  )
+)
+saveRDS(
+  noncoding,
+  here(
+    "dat", "atac-seq", "combined", "GRanges",
+    "noncoding_atac-seq_peak_annotation.RDS"
+  )
+)
 ```
 
 # Create the DsATAC object
@@ -135,10 +164,14 @@ metadata <- rbind(metadata1[, shared_cols], metadata2[, shared_cols])
 ```
 
 ```{r get bam file paths into a single vector}
-bam_file1 <- paste0(here("dat", "atac-seq", "GSE108517", "bam"), 
-                   "/", sample_list1, "_final.bam")
-bam_file2 <- paste0(here("dat", "atac-seq", "GSE138293", "bam"), 
-                   "/", sample_list2, "_final.bam")
+bam_file1 <- paste0(
+  here("dat", "atac-seq", "GSE108517", "bam"),
+  "/", sample_list1, "_final.bam"
+)
+bam_file2 <- paste0(
+  here("dat", "atac-seq", "GSE138293", "bam"),
+  "/", sample_list2, "_final.bam"
+)
 bam_files <- c(bam_file1, bam_file2)
 ```
 
@@ -152,13 +185,27 @@ setConfigElement("filteringSexChroms", TRUE)
 
 ```{r create dsatac object}
 dsa <- DsATAC.bam(sample_anno, "bam_files", "hg38",
-                  regionSets=list(promoters=promoters,
-                                  distal_regions=noncoding), 
-                  sampleIdCol = "Run",
-                  diskDump = FALSE)
+  regionSets = list(
+    promoters = promoters,
+    distal_regions = noncoding
+  ),
+  sampleIdCol = "Run",
+  diskDump = FALSE
+)
 ```
 
 ```{r save the dsatac object}
 dest <- file.path(here("dat", "atac-seq", "combined"), "DsAtacDataset")
 saveDsAcc(dsa, dest)
+```
+
+# End of Analysis
+```{r clean environment}
+rm(list = ls())
+gc()
+```
+
+```{r clean script}
+style_file(here("src", "atac-seq", "01_preprocessing", "03_annotate_peaks.Rmd"))
+lint(here("src", "atac-seq", "01_preprocessing", "03_annotate_peaks.Rmd"))
 ```

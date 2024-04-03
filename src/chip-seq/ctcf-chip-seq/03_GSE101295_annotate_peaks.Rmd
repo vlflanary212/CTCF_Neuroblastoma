@@ -1,0 +1,96 @@
+---
+title: "Annotate Peaks"
+author: "Victoria Flanary"
+date: "2024-03-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Generate GRanges object of CTCF ChIP-seq peaks
+## Set-up
+```{r load packages}
+library(here)
+library(readr)
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(biovizBase))
+suppressPackageStartupMessages(library(ChIPseeker))
+suppressPackageStartupMessages(library(GenomicFeatures))
+suppressWarnings(library(genomation))
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+```
+
+```{r load custom functions}
+source(here("src", "atac-seq", "functions.R"))
+```
+
+```{r load sample list}
+metadata <- read_csv(here("doc", "chip-seq", "GSE101295", "SraRunTable.txt"))
+sample_list <- metadata$Run
+```
+
+## Read .narrowPeak files into GRanges objects 
+```{r read data into granges}
+# define peak directory
+peak_dir <- paste0(here("dat", "chip-seq", "GSE101295", "peaks"), "/")
+
+# generate list of granges objects
+peak_list <- lapply(sample_list, narrow_peaks_to_granges, 
+                    peak_dir=peak_dir)
+names(peak_list) <- sample_list
+```
+
+```{r save peak list}
+saveRDS(peak_list, here("dat", "chip-seq", "GSE101295", 
+                        "peaks", "GSE101295_peak_list.RDS"))
+```
+
+```{r create granges object with all peaks}
+# code taken directly from Brianna A. Jones
+peaks <- peak_list %>% GRangesList %>% flatGrl()
+```
+
+# Annotate peaks 
+## Get Annotations
+```{r prepare annotations}
+# attempt 1
+# txdb <- makeTxDbFromGFF("/data/project/sen-lab/genome/hg38/gencode.v22.annotation.gtf")
+
+# attempt 2
+# gtf <- readGFFAsGRanges("/data/project/sen-lab/genome/hg38/gencode.v22.annotation.gtf")
+# txdb <- makeTxDbFromGRanges(gtf)
+```
+
+Errors from above code chunk: 
+Warning: The "phase" metadata column contains non-NA values for features of type stop_codon. This information was ignored.
+*Error: database or disk is full*
+
+Unable to find source of error, so I loaded the TxDb annotation from an object created locally using the saveDb() function from AnnotationDbi.
+
+```{r load annotations}
+txdb <- loadDb("/data/project/sen-lab/genome/hg38/gencode.v22.annotation.txdb")
+```
+
+## Format peak names
+```{r peak name format: chr_start_end}
+peaks$name <- paste0(seqnames(peaks), "_", start(peaks), "_", end(peaks))
+```
+
+```{r save formatted peaks}
+saveRDS(peaks, here("dat", "chip-seq", "GSE101295", 
+                    "peaks", "GSE101295_formatted_peaks.RDS"))
+```
+
+## Annotated Peaks
+```{r annotate peaks}
+peak_anno <- annotatePeak(peaks, tssRegion=c(-3000, 3000),
+                          TxDb=txdb, annoDb="org.Hs.eg.db")
+```
+
+```{r save annotated peaks}
+saveRDS(peak_anno,here("dat", "chip-seq", "GSE101295", 
+                        "peaks", "GSE101295_annotated_peaks.RDS"))
+```

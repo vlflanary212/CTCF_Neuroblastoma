@@ -1,0 +1,2 @@
+"promoters" 69084
+"distal_regions" 458900

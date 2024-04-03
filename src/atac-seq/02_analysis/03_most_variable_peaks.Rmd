@@ -1,0 +1,120 @@
+---
+title: "Top 5000 Most Variable Peaks in Distal and Intergenic Regions"
+author: "Victoria Flanary and Brianna A. Jones"
+date: "2024-03-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Set up the workspace
+```{r set working directory and here path}
+library(here)
+```
+
+```{r load packages}
+library(readr)
+library(dplyr)
+library(data.table)
+library(matrixStats)
+library(circlize)
+library(RColorBrewer)
+library(ComplexHeatmap)
+library(styler)
+library(lintr)
+```
+
+```{r load data}
+distal_fpkm <- read_csv(here(
+  "dat", "atac-seq", "combined", "counts",
+  "distal_fpkm_counts_by_cluster.csv"
+)) %>% as.data.frame()
+```
+
+```{r load metadata}
+metadata <- read_csv(here(
+  "doc", "atac-seq", "combined", "relevant_metadata.csv"
+))
+```
+
+# Format data
+```{r filter counts by row mean and variance}
+matrix <- distal_fpkm %>% as.matrix()
+row_var <- rowVars(matrix)
+row_mean <- rowMeans(matrix)
+filt_matrix <- subset(matrix, row_var >= 1 & row_mean >= 1)
+```
+
+```{r filter again by row variance}
+filt_row_var <- rowVars(filt_matrix)
+```
+
+```{r select top 5000 most variable peaks}
+df <- as.data.frame(filt_matrix)
+top_5000 <- slice_max(df, n = 5000, order_by = filt_row_var)
+```
+
+```{r scale data}
+top_5000_scaled <- t(scale(t(top_5000)))
+```
+
+```{r rename columns to cell line names}
+# ensure the metadata rows match counts colnames
+identical(colnames(top_5000_scaled), metadata$srr_id) # TRUE
+
+# change counts colnames
+colnames(top_5000_scaled) <- metadata$cell_line
+```
+
+```{r plot top 5000 peaks on heatmap}
+# define color palettes
+heatmap_pal <- colorRamp2(c(-5, 0, 5), c("blue", "white", "red"))
+cluster <- unique(metadata$cluster)
+cluster_col <- pal_nejm("default", alpha = 1)(6)
+mycn_status <- unique(metadata$mycn_status)
+mycn_col <- pal_cosmic("hallmarks_light", alpha = 1)(2)
+anno_pal <- list(
+  "Cluster" = setNames(cluster_col, cluster),
+  "MYCN_Status" = setNames(mycn_col, mycn_status)
+)
+
+# heatmap annotation
+anno <- HeatmapAnnotation(
+  annotation_name_gp = gpar(fontsize = 12),
+  col = anno_pal, simple_anno_size = unit(3, "mm"),
+  annotation_name_side = "left",
+  Cluster = as.factor(metadata$cluster),
+  MYCN_Status = metadata$mycn_status
+)
+
+# plot heatmap
+pdf(here(
+  "res", "atac-seq", "02_eda", "top_5000_most_variable_peaks_heatmap.pdf"
+))
+
+Heatmap(top_5000_scaled,
+  name = "scaled variance",
+  show_row_names = FALSE, column_names_gp = gpar(fontsize = 12),
+  cluster_columns = FALSE, top_annotation = anno, col = heatmap_pal,
+  use_raster = FALSE
+)
+
+dev.off()
+```
+
+# End of Analysis
+```{r clean environment}
+rm(list = ls())
+gc()
+```
+
+```{r clean script}
+style_file(here(
+  "src", "atac-seq", "02_analysis", "03_most_variable_peaks.Rmd"
+))
+lint(here(
+  "src", "atac-seq", "02_analysis", "03_most_variable_peaks.Rmd"
+))
+```
