@@ -26,25 +26,14 @@ library(ComplexHeatmap)
 
 ```{r load data}
 distal_fpkm <- read_csv(here("dat", "atac-seq", "combined", "counts",
-                             "distal_regions_fpkm_counts.csv")) %>% as.data.frame()
+                             "distal_fpkm_counts_by_cluster.csv")) %>% as.data.frame()
 ```
 
 ```{r load metadata}
-metadata <- read_csv(here("doc", "atac-seq", "combined", "metadata_with_clusters.csv"))
+metadata <- read_csv(here("doc", "atac-seq", "combined", "relevant_metadata.csv"))
 ```
 
 # Format data
-```{r move fragment names to rownames and rename columns}
-rownames(distal_fpkm) <- distal_fpkm$fragments
-distal_fpkm <- distal_fpkm[, -1]
-colnames(distal_fpkm) <- metadata$cell_line
-```
-
-```{r save as table}
-write.table(distal_fpkm, here("dat", "atac-seq", "combined", "counts", 
-                              "distal_regions_fpkm_counts.table"))
-```
-
 ```{r filter counts by row mean and variance}
 matrix <- distal_fpkm %>% as.matrix()
 row_var <- rowVars(matrix)
@@ -58,7 +47,6 @@ filt_row_var <- rowVars(filt_matrix)
 
 ```{r select top 5000 most variable peaks}
 df <- as.data.frame(filt_matrix)
-colnames(df) <- metadata$Run  # slice cannot handle duplicate colnames
 top_5000 <- slice_max(df, n = 5000, order_by = filt_row_var)
 ```
 
@@ -66,31 +54,28 @@ top_5000 <- slice_max(df, n = 5000, order_by = filt_row_var)
 top_5000_scaled <- t(scale(t(top_5000)))
 ```
 
-```{r format data by cell line and cluster}
-# arrange scaled data by cluster
-metadata <- arrange(metadata, cluster)
-top_5000_scaled <- top_5000_scaled[,match(metadata$Run, colnames(top_5000_scaled))]
+```{r rename columns to cell line names}
+# ensure the metadata rows match counts colnames
+identical(colnames(top_5000_scaled), metadata$srr_id)  # TRUE
 
-# change column names back to the cell line names
+# change counts colnames
 colnames(top_5000_scaled) <- metadata$cell_line
 ```
 
 ```{r plot top 5000 peaks on heatmap}
-# get consistent colors by setting a seed (also seems to determine colors?)
-set.seed(4)
-
 # define color palettes
 heatmap_pal <- colorRamp2(c(-5, 0, 5), c("blue", "white", "red"))
-
-cluster <- paste0("c", 1:6)
-cluster_col <- brewer.pal(6, "Dark2")  # palette not used in plot
-anno_pal <- list("Group" = setNames(cluster_col, cluster))
+cluster <- unique(metadata$cluster)
+cluster_col <- brewer.pal(6, "YlOrBr")
+anno_pal <- list("Cluster" = setNames(cluster_col, cluster),
+                 "MYCN_Status" = c("Amplified" = "darkred", "Non-amplified" = "azure4"))
 
 # heatmap annotation
 anno <- HeatmapAnnotation(annotation_name_gp = gpar(fontsize = 12),
                           col = anno_pal, simple_anno_size = unit(3, "mm"),
                           annotation_name_side = "left",
-                          cluster = as.factor(metadata$cluster))
+                          Cluster = as.factor(metadata$cluster),
+                          MYCN_Status = metadata$mycn_status)
 
 # plot heatmap
 pdf(here("res", "atac-seq", "02_eda", "top_5000_most_variable_peaks_heatmap.pdf"))
