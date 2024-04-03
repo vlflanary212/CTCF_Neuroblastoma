@@ -30,7 +30,7 @@ promoter_fpkm <- read_csv(here("dat", "atac-seq", "combined", "counts",
 ```
 
 ```{r load metadata}
-metadata <- read_csv(here("doc", "atac-seq", "combined", "atac-seq_cell_line_metadata.csv"))
+metadata <- read_csv(here("doc", "atac-seq", "combined", "merged_sra_run_tables.csv"))
 ```
 
 # Wrangle the data
