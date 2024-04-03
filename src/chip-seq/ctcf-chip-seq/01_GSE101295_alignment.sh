@@ -47,13 +47,13 @@ bwa mem -t 10 $ref_genome $fastq | samtools view -S -b -h -F 4 -q 20 > $bam_dir/
 samtools sort -@ 8 -o $bam_dir/"$sample"_sort.bam $bam_dir/"$sample"_mapped.bam
 
 # remove duplicates
-samtools rmdup -s $bam_dir/"sample"_sort.bam $bam_dir/"$sample"_final.bam
+samtools rmdup -s $bam_dir/"$sample"_sort.bam $bam_dir/"$sample"_final.bam
 
 # index 
 samtools index $bam_dir/"$sample"_final.bam
 
 # create bigwig file
-bamCoverage -b $bam_dir/"$sample"_final.bam -o $bigwig_dir/"$sample".bw --binSize 200 --normalizeUsing FPKM --effectiveGenomeSize 2913022398 
+bamCoverage -b $bam_dir/"$sample"_final.bam -o $bigwig_dir/"$sample".bw --binSize 200 --normalizeUsing RPKM --effectiveGenomeSize 2913022398 
 
 ##### END #####
 echo "done"
