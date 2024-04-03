@@ -11,6 +11,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r load packages}
 library(here)
+library(readr)
+library(styler)
+library(lintr)
 library(ChrAccR)
 ```
 
@@ -19,29 +22,49 @@ dsa <- loadDsAcc(here("dat", "atac-seq", "combined", "DsAtacDataset"))
 ```
 
 ```{r create a function to save counts from dsa objects}
-counts_from_dsa <- function(dsa, counts_suffix="_counts.csv") {
-  tiles = c(getRegionTypes(dsa))
+counts_from_dsa <- function(dsa, counts_suffix = "_counts.csv") {
+  tiles <- c(getRegionTypes(dsa))
   for (i in tiles) {
-    names <- getCoord(dsa, i)  # retrieve coordinate names
-    counts <- data.frame(getCounts(dsa, i))  # convert counts to a dataframe
+    names <- getCoord(dsa, i) # retrieve coordinate names
+    counts <- data.frame(getCounts(dsa, i)) # convert counts to a dataframe
     fragments <- names$name
     counts <- cbind(fragments, counts) # name rows by fragment
-    write_csv(counts, 
-              paste0(here("dat", "atac-seq", "combined", "counts"), "/", i, counts_suffix), 
-              col_names = TRUE)
+    write_csv(counts,
+      paste0(
+        here("dat", "atac-seq", "combined", "counts"), "/", i, counts_suffix
+      ),
+      col_names = TRUE
+    )
   }
 }
 ```
 
 ```{r save raw counts per tiling region}
-counts_from_dsa(dsa, counts_suffix="_raw_counts.csv")
+counts_from_dsa(dsa, counts_suffix = "_raw_counts.csv")
 ```
 
 ```{r fpkm normalization}
 fpkm <- transformCounts(dsa, method = "RPKM")
-saveDsAcc(fpkm, paste0(here("dat", "atac-seq", "combined", "counts"), "/", "DsAtacDataset_FPKM"))
+saveDsAcc(fpkm, paste0(here(
+  "dat", "atac-seq", "combined", "counts"
+), "/", "DsAtacDataset_FPKM"))
 ```
 
 ```{r save fpkm normalized counts by tiling region}
-counts_from_dsa(fpkm, counts_suffix="_fpkm_counts.csv")
+counts_from_dsa(fpkm, counts_suffix = "_fpkm_counts.csv")
+```
+
+# End of Analysis
+```{r clean environment}
+rm(list = ls())
+gc()
+```
+
+```{r clean script}
+style_file(here(
+  "src", "atac-seq", "01_preprocessing", "05_normalize_counts.Rmd"
+))
+lint(here(
+  "src", "atac-seq", "01_preprocessing", "05_normalize_counts.Rmd"
+))
 ```

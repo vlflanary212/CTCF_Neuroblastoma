@@ -16,6 +16,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(here)
 library(ggplot2)
 library(ggpubr)
+library(styler)
+library(lintr)
 library(ChrAccR)
 ```
 
@@ -33,13 +35,21 @@ str(getSampleAnnot(dsa))
 ```
 
 ```{r number of each region type in the data}
-region_table <- data.frame(region = getRegionTypes(dsa),
-                num_region = c(getNRegions(dsa, "promoters"), 
-                               getNRegions(dsa, "distal_regions")))
+region_table <- data.frame(
+  region = getRegionTypes(dsa),
+  num_region = c(
+    getNRegions(dsa, "promoters"),
+    getNRegions(dsa, "distal_regions")
+  )
+)
 
-write.table(region_table, row.names = FALSE, col.names = FALSE,
-            file = here("res", "atac-seq", "01_qc", 
-                        "number_of_each_region.txt"))
+write.table(region_table,
+  row.names = FALSE, col.names = FALSE,
+  file = here(
+    "res", "atac-seq", "01_qc",
+    "number_of_each_region.txt"
+  )
+)
 ```
 
 ```{r region-by-sample matrix with Tn5 insertion counts}
@@ -51,7 +61,7 @@ tn5_inserts_distal <- getCounts(dsa, "distal_regions")
 
 # distribution of tn5_insertion counts by region
 pdf(here("res", "atac-seq", "01_qc", "tn5_insertion_counts_by_region.pdf"))
-par(mfrow = c(2,2))
+par(mfrow = c(2, 2))
 hist(tn5_inserts_promoters, main = "Tn5 Inserts in Promoter Regions")
 hist(log10(tn5_inserts_promoters), main = "Tn5 Inserts in Promoter Regions")
 hist(tn5_inserts_distal, main = "Tn5 Inserts in Distal Regions")
@@ -62,16 +72,22 @@ dev.off()
 ```{r number of fragments per sample}
 num_fragments <- getFragmentNum(dsa, getSamples(dsa))
 
-write.table(num_fragments, row.names = TRUE, col.names = FALSE,
-            file = here("res", "atac-seq", "01_qc", 
-                        "number_of_fragments_per_sample.txt"))
+write.table(num_fragments,
+  row.names = TRUE, col.names = FALSE,
+  file = here(
+    "res", "atac-seq", "01_qc",
+    "number_of_fragments_per_sample.txt"
+  )
+)
 ```
 
 ```{r all Tn5 insertion sites}
 all_tn5_sites <- getInsertionSites(dsa, getSamples(dsa))
 
-saveRDS(all_tn5_sites, here("res", "atac-seq", "00_large_files", 
-                            "all_tn5_insertion_sites.RDS"))
+saveRDS(all_tn5_sites, here(
+  "res", "atac-seq", "00_large_files",
+  "all_tn5_insertion_sites.RDS"
+))
 ```
 
 # QC
@@ -83,25 +99,27 @@ cell_lines <- dsa@sampleAnnot[["cell_line"]]
 # separate ggplot figures in a loop
 plot_list <- list()
 for (i in seq_along(sample_list)) {
-  plot <- plotInsertSizeDistribution(dsa, sample_list[i]) + ggtitle(cell_lines[i])
+  plot <- plotInsertSizeDistribution(
+    dsa, sample_list[i]
+  ) + ggtitle(cell_lines[i])
   plot_list[[sample_list[i]]] <- plot
   print(paste0(sample_list[i], " done"))
 }
 
 # save plots in a single pdf
 pdf(here("res", "atac-seq", "01_qc", "fragment_size_distributions.pdf"))
-ggarrange(plotlist=plot_list, ncol = 6, nrow = 5)
+ggarrange(plotlist = plot_list, ncol = 6, nrow = 5)
 dev.off()
 ```
 
 ```{r tss enrichment plots}
 # prepare granges object with tss coordinates
 tss_gr <- muRtools::getAnnotGrl.gencode("gencode.v27")[["gene"]]
-tss_gr <- tss_gr[elementMetadata(tss_gr)[,"gene_type"] == "protein_coding"]
-tss_gr <- promoters(tss_gr, upstream=0, downstream=1)
+tss_gr <- tss_gr[elementMetadata(tss_gr)[, "gene_type"] == "protein_coding"]
+tss_gr <- promoters(tss_gr, upstream = 0, downstream = 1)
 
 # compute and plot tss enrichment scores
-## tss enrichment score - number of insertions at tss over 
+## tss enrichment score - number of insertions at tss over
 ## number of insertions at other regions
 plot_list <- list()
 for (i in seq_along(sample_list)) {
@@ -112,6 +130,17 @@ for (i in seq_along(sample_list)) {
 }
 
 pdf(here("res", "atac-seq", "01_qc", "tss_enrichment_plots.pdf"))
-ggarrange(plotlist=plot_list, ncol = 6, nrow = 5)
+ggarrange(plotlist = plot_list, ncol = 6, nrow = 5)
 dev.off()
+```
+
+# End of Analysis
+```{r clean environment}
+rm(list = ls())
+gc()
+```
+
+```{r clean script}
+style_file(here("src", "atac-seq", "01_preprocessing", "04_qc_and_filt.Rmd"))
+lint(here("src", "atac-seq", "01_preprocessing", "04_qc_and_filt.Rmd"))
 ```

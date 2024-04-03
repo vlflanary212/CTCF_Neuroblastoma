@@ -20,26 +20,36 @@ library(dplyr)
 library(matrixStats)
 library(ComplexHeatmap)
 library(circlize)
+library(styler)
+library(lintr)
 ```
 
 ```{r load data}
-distal_fpkm <- read_csv(here("dat", "atac-seq", "combined", "counts",
-                             "distal_regions_fpkm_counts.csv"))
-promoter_fpkm <- read_csv(here("dat", "atac-seq", "combined", "counts",
-                             "promoters_fpkm_counts.csv"))
+distal_fpkm <- read_csv(here(
+  "dat", "atac-seq", "combined", "counts",
+  "distal_regions_fpkm_counts.csv"
+))
+promoter_fpkm <- read_csv(here(
+  "dat", "atac-seq", "combined", "counts",
+  "promoters_fpkm_counts.csv"
+))
 ```
 
 ```{r load metadata}
-metadata <- read_csv(here("doc", "atac-seq", "combined", "merged_sra_run_tables.csv"))
+metadata <- read_csv(
+  here("doc", "atac-seq", "combined", "merged_sra_run_tables.csv")
+)
 ```
 
 # Wrangle the data
 ```{r format data}
 # replace srr_ids with cell_line names
 colnames(distal_fpkm) <- metadata$cell_line[match(
-  colnames(distal_fpkm), metadata$Run)]
+  colnames(distal_fpkm), metadata$Run
+)]
 colnames(promoter_fpkm) <- metadata$cell_line[match(
-  colnames(promoter_fpkm), metadata$Run)]
+  colnames(promoter_fpkm), metadata$Run
+)]
 
 # remove fragment name column and convert to matrix
 distal_fpkm <- distal_fpkm[, -1] %>% data.matrix()
@@ -53,7 +63,7 @@ corr_matrix <- function(counts_matrix) {
   vars <- rowVars(counts_matrix)
   means <- rowMeans(counts_matrix)
   filt <- subset(counts_matrix, vars > 0 & means >= 1)
-  
+
   # calculate correlation matrix
   cor(filt)
 }
@@ -69,17 +79,20 @@ colors <- colorRamp2(c(-1, 0, 1), c("blue", "white", "red"))
 
 pdf(here("res", "atac-seq", "02_eda", "atac_peak_correlation_by_region.pdf"))
 
-Heatmap(promoter_corr, 
-        column_title = "Pearson Correlation of Promoter Chromatin Accessibility",
-        name = "correlation", col = colors,
-        clustering_method_rows = "ward.D2", 
-        clustering_method_columns = "ward.D2")
+Heatmap(promoter_corr,
+  column_title = "Pearson Correlation of Promoter Chromatin Accessibility",
+  name = "correlation", col = colors,
+  clustering_method_rows = "ward.D2",
+  clustering_method_columns = "ward.D2"
+)
 
-Heatmap(distal_corr, column_title = "Pearson Correlation of Distal and 
+Heatmap(distal_corr,
+  column_title = "Pearson Correlation of Distal and
         Intergenic Region Chromatin Accessibility",
-        name = "correlation", col = colors,
-        clustering_method_rows = "ward.D2", 
-        clustering_method_columns = "ward.D2")
+  name = "correlation", col = colors,
+  clustering_method_rows = "ward.D2",
+  clustering_method_columns = "ward.D2"
+)
 
 dev.off()
 ```
@@ -90,7 +103,9 @@ euclidean <- dist(distal_corr, method = "euclidean")
 ```
 
 ```{r plot clusters}
-pdf(here("res", "atac-seq", "02_eda", "hierarchical_clustering_of_distal_peaks.pdf"))
+pdf(here(
+  "res", "atac-seq", "02_eda", "hierarchical_clustering_of_distal_peaks.pdf"
+))
 
 hc <- hclust(euclidean, method = "ward.D2")
 plot(hc, main = "Hierarchichal Clustering of Distal Peaks")
@@ -100,10 +115,25 @@ dev.off()
 ```
 
 ```{r add and save clusters to metadata}
-cluster <- cutree(hc, h=1.6)
+cluster <- cutree(hc, h = 1.6)
 metadata <- cbind(metadata, cluster)
 
-metadata <- write_csv(metadata, here("doc", "atac-seq", "combined", "metadata_with_clusters.csv"))
+metadata <- write_csv(
+  metadata, here("doc", "atac-seq", "combined", "metadata_with_clusters.csv")
+)
 ```
 
 # End of Analysis
+```{r clean environment}
+rm(list = ls())
+gc()
+```
+
+```{r clean script}
+style_file(here(
+  "src", "atac-seq", "02_analysis", "01_correlation_and_clustering.Rmd"
+))
+lint(here(
+  "src", "atac-seq", "02_analysis", "01_correlation_and_clustering.Rmd"
+))
+```

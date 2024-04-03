@@ -21,16 +21,24 @@ library(data.table)
 library(ggplot2)
 library(ggpubr)
 library(ggsci)
+library(styler)
+library(lintr)
 ```
 
 ```{r load data}
-distal_fpkm <- read_csv(here("dat", "atac-seq", "combined", "counts",
-                             "distal_regions_fpkm_counts.csv")) %>% as.data.frame()
+distal_fpkm <- read_csv(here(
+  "dat", "atac-seq", "combined", "counts",
+  "distal_regions_fpkm_counts.csv"
+)) %>% as.data.frame()
 ```
 
 ```{r load metadata}
-metadata <- read_csv(here("doc", "atac-seq", "combined", "metadata_with_clusters.csv"))
-phenotypes <- read_csv(here("doc", "atac-seq", "combined", "atac-seq_cell_line_metadata.csv"))
+metadata <- read_csv(here(
+  "doc", "atac-seq", "combined", "metadata_with_clusters.csv"
+))
+phenotypes <- read_csv(here(
+  "doc", "atac-seq", "combined", "atac-seq_cell_line_metadata.csv"
+))
 ```
 
 # Simplify metadata
@@ -44,11 +52,13 @@ identical(metadata$Run, phenotypes$srr_id) # TRUE
 # just want to add clusters to the phenotype metadata
 filt_meta <- cbind(phenotypes, cluster = as.factor(metadata$cluster))
 
-# arrange by cluster 
+# arrange by cluster
 filt_meta <- arrange(filt_meta, cluster)
 
 # save metadata
-write_csv(filt_meta, here("doc", "atac-seq", "combined", "relevant_metadata.csv"))
+write_csv(filt_meta, here(
+  "doc", "atac-seq", "combined", "relevant_metadata.csv"
+))
 ```
 
 # Format data
@@ -65,8 +75,10 @@ identical(colnames(distal_fpkm), filt_meta$srr_id) # TRUE
 ```
 
 ```{r save formatted counts}
-write_csv(distal_fpkm, here("dat", "atac-seq", "combined", "counts",
-                            "distal_fpkm_counts_by_cluster.csv"))
+write_csv(distal_fpkm, here(
+  "dat", "atac-seq", "combined", "counts",
+  "distal_fpkm_counts_by_cluster.csv"
+))
 ```
 
 # PCA
@@ -78,83 +90,116 @@ distal_pca <- prcomp(t(distal_fpkm), scale = TRUE)
 pdf(here("res", "atac-seq", "02_eda", "distal_peaks_pca_scree_plot.pdf"))
 
 pca_var <- distal_pca$sdev^2
-pca_var_per <- round(pca_var/sum(pca_var)*100, 1)
-barplot(pca_var_per, main = "Scree plot", 
-        xlab = "Principal Components", ylab = "Percent Variation")
+pca_var_per <- round(pca_var / sum(pca_var) * 100, 1)
+barplot(pca_var_per,
+  main = "Scree plot",
+  xlab = "Principal Components", ylab = "Percent Variation"
+)
 
 dev.off()
 ```
 
 ```{r format for ggplot2}
 pca_data <- data.frame(filt_meta,
-                       PC1 = distal_pca$x[,1],
-                       PC2 = distal_pca$x[,2], 
-                       row.names = NULL) 
+  PC1 = distal_pca$x[, 1],
+  PC2 = distal_pca$x[, 2],
+  row.names = NULL
+)
 ```
 
 ```{r plot pca with ggplot2}
-pdf(here("res", "atac-seq", "02_eda", "distal_peaks_pca_plots_by_cluster.pdf"),
-    width = 11, height = 6)
+pdf(
+  here(
+    "res", "atac-seq", "02_eda", "distal_peaks_pca_plots_by_cluster.pdf"
+  ),
+  width = 11, height = 6
+)
 
-x <- ggplot(pca_data, aes(x = PC1, y = PC2, color = cluster)) +
+x <- ggplot(
+  pca_data,
+  aes(x = PC1, y = PC2, color = cluster)
+) +
   geom_point() +
   xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
   ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
   ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
   scale_color_nejm()
 
-y <- ggplot(pca_data, aes(x = PC1, y = PC2, label = cell_line, color = cluster)) +
+y <- ggplot(
+  pca_data,
+  aes(x = PC1, y = PC2, label = cell_line, color = cluster)
+) +
   geom_text(show.legend = FALSE) +
   xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
   ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
   ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
   scale_color_nejm()
 
-ggarrange(x,y, ncol = 2, nrow = 1)
+ggarrange(x, y, ncol = 2, nrow = 1)
 dev.off()
 ```
 
 ```{r}
-pdf(here("res", "atac-seq", "02_eda", "distal_peaks_pca_plots_by_mycn_status.pdf"),
-    width = 11, height = 6)
+pdf(
+  here(
+    "res", "atac-seq", "02_eda", "distal_peaks_pca_plots_by_mycn_status.pdf"
+  ),
+  width = 11, height = 6
+)
 
-x <- ggplot(pca_data, aes(x = PC1, y = PC2, color = mycn_status)) +
+x <- ggplot(
+  pca_data,
+  aes(x = PC1, y = PC2, color = mycn_status)
+) +
   geom_point() +
   xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
   ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
   ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
   scale_color_nejm()
 
-y <- ggplot(pca_data, aes(x = PC1, y = PC2, label = cell_line, color = mycn_status)) +
+y <- ggplot(
+  pca_data,
+  aes(x = PC1, y = PC2, label = cell_line, color = mycn_status)
+) +
   geom_text() +
   xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
   ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
   ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
   scale_color_nejm()
 
-ggarrange(x,y, ncol = 2, nrow = 1)
+ggarrange(x, y, ncol = 2, nrow = 1)
 dev.off()
 ```
 
 ```{r}
-pdf(here("res", "atac-seq", "02_eda", "distal_peaks_pca_plots_by_alk_status.pdf"),
-    width = 11, height = 6)
+pdf(
+  here(
+    "res", "atac-seq", "02_eda", "distal_peaks_pca_plots_by_alk_status.pdf"
+  ),
+  width = 11, height = 6
+)
 
-x <- ggplot(pca_data, aes(x = PC1, y = PC2, color = alk_mutation)) +
+x <- ggplot(
+  pca_data,
+  aes(x = PC1, y = PC2, color = alk_mutation)
+) +
   geom_point() +
   xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
   ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
   ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
   scale_color_nejm()
 
-y <- ggplot(pca_data, aes(x = PC1, y = PC2, label = cell_line, color = alk_mutation)) +
+y <- ggplot(
+  pca_data,
+  aes(x = PC1, y = PC2, label = cell_line, color = alk_mutation)
+) +
   geom_text() +
   xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
   ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
   ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
   scale_color_nejm()
 
-ggarrange(x,y, ncol = 2, nrow = 1)
+ggarrange(x, y, ncol = 2, nrow = 1)
 dev.off()
 ```
 
@@ -166,6 +211,22 @@ top_10_fragments <- names(fragment_scores_ranked[1:10])
 
 x <- distal_pca$rotation[top_10_fragments, 1]
 write.table(x, paste0(
-  here("res", "atac-seq", "02_eda"), "/", "top_10_fragments.table"),
-  row.names = TRUE)
+  here("res", "atac-seq", "02_eda"), "/", "top_10_fragments.table"
+),
+row.names = TRUE
+)
+```
+
+```{r clean environment}
+rm(list = ls())
+gc()
+```
+
+```{r clean script}
+style_file(here(
+  "src", "atac-seq", "02_analysis", "02_dimension_reduction.Rmd"
+))
+lint(here(
+  "src", "atac-seq", "02_analysis", "02_dimension_reduction.Rmd"
+))
 ```
