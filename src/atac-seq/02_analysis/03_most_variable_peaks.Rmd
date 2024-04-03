@@ -66,9 +66,11 @@ colnames(top_5000_scaled) <- metadata$cell_line
 # define color palettes
 heatmap_pal <- colorRamp2(c(-5, 0, 5), c("blue", "white", "red"))
 cluster <- unique(metadata$cluster)
-cluster_col <- brewer.pal(6, "YlOrBr")
+cluster_col <- pal_nejm("default", alpha = 1)(6)
+mycn_status <- unique(metadata$mycn_status)
+mycn_col <- pal_cosmic("hallmarks_light", alpha = 1)(2)
 anno_pal <- list("Cluster" = setNames(cluster_col, cluster),
-                 "MYCN_Status" = c("Amplified" = "darkred", "Non-amplified" = "azure4"))
+                 "MYCN_Status" = setNames(mycn_col, mycn_status))
 
 # heatmap annotation
 anno <- HeatmapAnnotation(annotation_name_gp = gpar(fontsize = 12),

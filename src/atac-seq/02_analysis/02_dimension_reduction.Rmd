@@ -20,6 +20,7 @@ library(dplyr)
 library(data.table)
 library(ggplot2)
 library(ggpubr)
+library(ggsci)
 ```
 
 ```{r load data}
@@ -100,14 +101,14 @@ x <- ggplot(pca_data, aes(x = PC1, y = PC2, color = cluster)) +
   xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
   ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
   ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
-  scale_color_brewer(palette = "Dark2")
+  scale_color_nejm()
 
 y <- ggplot(pca_data, aes(x = PC1, y = PC2, label = cell_line, color = cluster)) +
   geom_text(show.legend = FALSE) +
   xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
   ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
   ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
-  scale_color_brewer(palette = "Dark2")
+  scale_color_nejm()
 
 ggarrange(x,y, ncol = 2, nrow = 1)
 dev.off()
@@ -122,14 +123,36 @@ x <- ggplot(pca_data, aes(x = PC1, y = PC2, color = mycn_status)) +
   xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
   ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
   ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
-  scale_color_brewer(palette = "Dark2")
+  scale_color_nejm()
 
 y <- ggplot(pca_data, aes(x = PC1, y = PC2, label = cell_line, color = mycn_status)) +
-  geom_text(show.legend = FALSE) +
+  geom_text() +
   xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
   ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
   ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
-  scale_color_brewer(palette = "Dark2")
+  scale_color_nejm()
+
+ggarrange(x,y, ncol = 2, nrow = 1)
+dev.off()
+```
+
+```{r}
+pdf(here("res", "atac-seq", "02_eda", "distal_peaks_pca_plots_by_alk_status.pdf"),
+    width = 11, height = 6)
+
+x <- ggplot(pca_data, aes(x = PC1, y = PC2, color = alk_mutation)) +
+  geom_point() +
+  xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
+  ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
+  ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
+  scale_color_nejm()
+
+y <- ggplot(pca_data, aes(x = PC1, y = PC2, label = cell_line, color = alk_mutation)) +
+  geom_text() +
+  xlab(paste0("PC1 - ", pca_var_per[1], "%")) +
+  ylab(paste0("PC2 - ", pca_var_per[2], "%")) +
+  ggtitle("PCA of FPKM-Normalized Distal ATAC-seq Counts") +
+  scale_color_nejm()
 
 ggarrange(x,y, ncol = 2, nrow = 1)
 dev.off()

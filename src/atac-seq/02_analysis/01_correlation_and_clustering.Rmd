@@ -65,7 +65,7 @@ promoter_corr <- corr_matrix(promoter_fpkm)
 ```
 
 ```{r visualize correlation matrices}
-colors <- colorRamp2(c(-1, 0, 1), c( "blue","white","red"))
+colors <- colorRamp2(c(-1, 0, 1), c("blue", "white", "red"))
 
 pdf(here("res", "atac-seq", "02_eda", "atac_peak_correlation_by_region.pdf"))
 
@@ -105,6 +105,5 @@ metadata <- cbind(metadata, cluster)
 
 metadata <- write_csv(metadata, here("doc", "atac-seq", "combined", "metadata_with_clusters.csv"))
 ```
-
 
 # End of Analysis
