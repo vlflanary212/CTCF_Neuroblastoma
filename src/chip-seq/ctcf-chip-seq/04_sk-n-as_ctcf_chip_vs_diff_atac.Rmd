@@ -76,8 +76,12 @@ diff_atac_gr_up <- subset(diff_atac_gr_all, log2fc > 0)
 diff_atac_gr_sig <- subset(diff_atac_gr_up, padj < 0.05)
 
 # non significant peaks
-diff_atac_gr_nonsig <- subset(diff_atac_gr_up, padj > 0.05 |
-  is.na(diff_atac_gr_up@elementMetadata@listData[["padj"]]))
+diff_atac_gr_nonsig <- subset(
+  diff_atac_gr_up, padj > 0.05 |
+    is.na(
+      diff_atac_gr_up@elementMetadata@listData[["padj"]]
+    )
+)
 ```
 
 ## Randomization-based hypothesis testing
@@ -180,8 +184,16 @@ dev.off()
 ```
 
 # End of script
-```{r format script by tidyverse style guide}
-style_file(here("src", "chip-seq", "ctcf-chip-seq", "sk-n-as_ctcf_chip_vs_atac_overlap.Rmd"))
-lint(here("src", "chip-seq", "ctcf-chip-seq", "sk-n-as_ctcf_chip_vs_atac_overlap.Rmd"))
+```{r clean environment}
+rm(list = ls())
+gc()
 ```
 
+```{r clean script}
+style_file(here(
+  "src", "chip-seq", "ctcf-chip-seq", "04_sk-n-as_ctcf_chip_vs_diff_atac.Rmd"
+))
+lint(here(
+  "src", "chip-seq", "ctcf-chip-seq", "04_sk-n-as_ctcf_chip_vs_diff_atac.Rmd"
+))
+```
