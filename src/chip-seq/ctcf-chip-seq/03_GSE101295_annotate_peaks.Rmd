@@ -21,6 +21,8 @@ suppressPackageStartupMessages(library(GenomicFeatures))
 suppressWarnings(library(genomation))
 library(AnnotationDbi)
 library(org.Hs.eg.db)
+library(styler)
+library(lintr)
 ```
 
 ```{r load custom functions}
@@ -38,29 +40,38 @@ sample_list <- metadata$Run
 peak_dir <- paste0(here("dat", "chip-seq", "GSE101295", "peaks"), "/")
 
 # generate list of granges objects
-peak_list <- lapply(sample_list, narrow_peaks_to_granges, 
-                    peak_dir=peak_dir)
+peak_list <- lapply(sample_list, narrow_peaks_to_granges,
+  peak_dir = peak_dir
+)
 names(peak_list) <- sample_list
 ```
 
 ```{r save peak list}
-saveRDS(peak_list, here("dat", "chip-seq", "GSE101295", 
-                        "peaks", "GSE101295_peak_list.RDS"))
+saveRDS(peak_list, here(
+  "dat", "chip-seq", "GSE101295",
+  "peaks", "GSE101295_peak_list.RDS"
+))
 ```
 
 ```{r create granges object with all peaks}
 # code taken directly from Brianna A. Jones
-peaks <- peak_list %>% GRangesList %>% flatGrl()
+peaks <- peak_list %>%
+  GRangesList() %>%
+  flatGrl()
 ```
 
 # Annotate peaks 
 ## Get Annotations
 ```{r prepare annotations}
 # attempt 1
-# txdb <- makeTxDbFromGFF("/data/project/sen-lab/genome/hg38/gencode.v22.annotation.gtf")
+# txdb <- makeTxDbFromGFF(
+# "/data/project/sen-lab/genome/hg38/gencode.v22.annotation.gtf"
+# )
 
 # attempt 2
-# gtf <- readGFFAsGRanges("/data/project/sen-lab/genome/hg38/gencode.v22.annotation.gtf")
+# gtf <- readGFFAsGRanges(
+# "/data/project/sen-lab/genome/hg38/gencode.v22.annotation.gtf"
+# )
 # txdb <- makeTxDbFromGRanges(gtf)
 ```
 
@@ -80,17 +91,38 @@ peaks$name <- paste0(seqnames(peaks), "_", start(peaks), "_", end(peaks))
 ```
 
 ```{r save formatted peaks}
-saveRDS(peaks, here("dat", "chip-seq", "GSE101295", 
-                    "peaks", "GSE101295_formatted_peaks.RDS"))
+saveRDS(peaks, here(
+  "dat", "chip-seq", "GSE101295",
+  "peaks", "GSE101295_formatted_peaks.RDS"
+))
 ```
 
 ## Annotated Peaks
 ```{r annotate peaks}
-peak_anno <- annotatePeak(peaks, tssRegion=c(-3000, 3000),
-                          TxDb=txdb, annoDb="org.Hs.eg.db")
+peak_anno <- annotatePeak(peaks,
+  tssRegion = c(-3000, 3000),
+  TxDb = txdb, annoDb = "org.Hs.eg.db"
+)
 ```
 
 ```{r save annotated peaks}
-saveRDS(peak_anno,here("dat", "chip-seq", "GSE101295", 
-                        "peaks", "GSE101295_annotated_peaks.RDS"))
+saveRDS(peak_anno, here(
+  "dat", "chip-seq", "GSE101295",
+  "peaks", "GSE101295_annotated_peaks.RDS"
+))
+```
+
+# End of script
+```{r clean environment}
+rm(list = ls())
+gc()
+```
+
+```{r clean script}
+style_file(here(
+  "src", "chip-seq", "ctcf-chip-seq", "03_GSE101295_annotate_peaks.Rmd"
+))
+lint(here(
+  "src", "chip-seq", "ctcf-chip-seq", "03_GSE101295_annotate_peaks.Rmd"
+))
 ```
